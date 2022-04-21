@@ -18,6 +18,8 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.MessagingException;
 
+import java.util.Objects;
+
 @Configuration
 public class MqttConfig {
     @Value("${server_url}")
@@ -87,19 +89,17 @@ public class MqttConfig {
     @Bean
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public MessageHandler handler() {
-        return new MessageHandler() {
-            @Override
-            public void handleMessage(Message<?> message) throws MessagingException {
-                String topic = message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC).toString();
-                System.out.println(message.getHeaders().get("mqtt_receivedTopic"));
-                System.out.println(message.getHeaders());
-                if (topic.equals(sub_topic)) {
-                    System.out.println("subbed topic " + message.getPayload());
-                } else {
-                    System.out.println("othr topic " + message.getPayload());
-                }
-
+        return message -> {
+            String topic = Objects.requireNonNull(message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC)).toString();
+            //System.out.println(message.getHeaders().get("mqtt_receivedTopic"));
+            //System.out.println(message.getHeaders());
+            System.out.println("topic received  is : " + topic);
+            if (topic.equals(sub_topic)) {
+                System.out.println("message from a subscribed topic : " + message.getPayload());
+            } else {
+                System.out.println("message from a non subscribed topic : " + message.getPayload());
             }
+
         };
     }
 }
