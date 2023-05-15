@@ -14,7 +14,6 @@ import org.springframework.core.SpringVersion;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.core.MessageProducer;
-import org.springframework.integration.endpoint.MessageProducerSupport;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
@@ -50,7 +49,11 @@ public class MqttConfig {
         String pwd = password;
         options.setPassword(pwd.toCharArray());
         options.setCleanSession(true);
+        options.setConnectionTimeout(30);
+        options.setKeepAliveInterval(60);
+        options.setAutomaticReconnect(true);
         factory.setConnectionOptions(options);
+        System.out.println("connected 56 auth");
         return factory;
     }
 
@@ -63,10 +66,10 @@ public class MqttConfig {
     @ServiceActivator(inputChannel = "mqttOutboundChannel")
     public MessageHandler mqttOutbound() {
         //clientId is generated using a random number
-        MqttPahoMessageHandler messageHandler = new MqttPahoMessageHandler("client defined in spring", mqttPahoClientFactory());
+        MqttPahoMessageHandler messageHandler = new MqttPahoMessageHandler(MqttAsyncClient.generateClientId(), mqttPahoClientFactory());
 
         //MqttPahoMessageHandler messageHandler = new MqttPahoMessageHandler(MqttAsyncClient.generateClientId(), mqttPahoClientFactory());
-        System.out.println("hai joffy this is spring client id " + messageHandler.getClientId());
+        System.out.println("outbound client id " + messageHandler.getClientId());
         System.out.println("spring " + SpringVersion.getVersion());
         System.out.println("java " + JavaVersion.getJavaVersion().toString());
         System.out.println("jdk  " + SystemProperties.get("java.version"));
@@ -74,6 +77,7 @@ public class MqttConfig {
         messageHandler.setDefaultQos(1);
         messageHandler.setDefaultTopic("#");
         messageHandler.setDefaultRetained(false);
+        System.out.println("connected 80 outbound");
         return messageHandler;
     }
 
@@ -84,16 +88,15 @@ public class MqttConfig {
 
     @Bean
     public MessageProducer inbound() {
-        // to recive from all topics, subscribe to all
-//        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter("springInboundClient",
-//                mqttPahoClientFactory(), "#");
-        //to recive from only subscribed topic set in app props, subscribe to needed topics
-        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter("springInboundClient",
+        String client = MqttAsyncClient.generateClientId();
+        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(client,
                 mqttPahoClientFactory(), sub_topic);
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(0);
         adapter.setOutputChannel(mqttInputChannel());
+        System.out.println("connected 97 inbound");
+        System.out.println("inbound client = "+client);
         return adapter;
 
     }
@@ -105,12 +108,17 @@ public class MqttConfig {
         return new MessageHandler() {
             @Override
             public void handleMessage(Message<?> message) throws MessagingException {
-//                String topic = message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC).toString();
+                String topic = Objects.requireNonNull(message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC)).toString();
 //                System.out.println(message.getHeaders().get("mqtt_receivedTopic"));
+//                System.out.println(topic);
                 System.out.println("\n============New_Data=============\n" +
-                        "data from gateway/topic ---- " + message.getHeaders().get("mqtt_receivedTopic"));
+                        "data from gateway/topic ---- " + topic);
+               // System.out.println("getclass \n"+message.getClass().toString() +"getpayload \n"+message.getPayload() +
+                       // "getheader"+message.getHeaders());
+
 
                 String stringArray = message.getPayload().toString();
+                System.out.println(stringArray);
                 try {
                     new JSONObject(stringArray);
                 } catch (JSONException e) {
@@ -123,8 +131,8 @@ public class MqttConfig {
                             int minor = object.getInt("ibeaconMinor");
                             int rssi = object.getInt("rssi");
                             int slno = i + 1;
-                            System.out.println("SLNO : " + slno + "\nuuid : " + uuid + " \nmajor : " + major + "\nminor : " + minor + "\nrssi : " + rssi + "\n" +
-                                    "---------------------------------------");
+                           // System.out.println("SLNO : " + slno + "\nuuid : " + uuid + " \nmajor : " + major + "\nminor : " + minor + "\nrssi : " + rssi + "\n" +
+                            //        "---------------------------------------");
                         }
 
                     } catch (JSONException ne) {
