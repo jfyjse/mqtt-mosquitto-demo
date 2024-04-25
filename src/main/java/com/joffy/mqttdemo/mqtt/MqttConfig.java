@@ -1,5 +1,8 @@
 package com.joffy.mqttdemo.mqtt;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.json.JSONArray;
@@ -26,6 +29,7 @@ import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.MessagingException;
 
 import java.util.Objects;
+import java.util.stream.StreamSupport;
 
 @Configuration
 public class MqttConfig {
@@ -118,7 +122,26 @@ public class MqttConfig {
 
 
                 String stringArray = message.getPayload().toString();
-                System.out.println(stringArray);
+                //System.out.println(stringArray);
+                // Create ObjectMapper
+                ObjectMapper objectMapper = new ObjectMapper();
+
+                // Parse JSON
+                JsonNode rootNode = null;
+                try {
+                    rootNode = objectMapper.readTree(stringArray);
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+
+                // Extract "major" and "minor" values using Java Streams
+                StreamSupport.stream(rootNode.path("data").path("value").path("device_list").spliterator(), false)
+                        .forEach(device -> {
+                            String major = device.path("major").asText();
+                            String minor = device.path("minor").asText();
+                            System.out.println("Major: " + major + ", Minor: " + minor);
+                        });
+
                 try {
                     new JSONObject(stringArray);
                 } catch (JSONException e) {

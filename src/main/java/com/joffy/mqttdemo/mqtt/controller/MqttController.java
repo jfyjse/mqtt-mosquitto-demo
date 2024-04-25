@@ -22,7 +22,7 @@ public class MqttController {
             mqtGateway.senToMqtt(convertObject.get("message").toString(), convertObject.get("topic").getAsString());
             return ResponseEntity.ok("Success");
         } catch (Exception ex) {
-            ex.printStackTrace();
+
             return ResponseEntity.ok("fail");
         }
     }
